@@ -44,7 +44,7 @@ export default function MultiplayerGame() {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
     if (roomParam) {
-      setRoomInput(roomParam.toUpperCase());
+      setRoomInput(roomParam);
     }
 
     // Determine current URL for QR code 
@@ -80,7 +80,7 @@ export default function MultiplayerGame() {
     const roomParam = params.get('room');
     if (roomParam) {
       console.log('Detecting room param from URL, auto-joining...', roomParam);
-      socket.emit('join_room', roomParam.toUpperCase());
+      socket.emit('join_room', roomParam);
     }
 
     socket.on('room_created', (id) => {
@@ -91,6 +91,7 @@ export default function MultiplayerGame() {
     socket.on('room_joined', ({ roomId: jId, isPlayer2 }) => {
       setRoomId(jId);
       setIsPlayer2(isPlayer2);
+      alert(`Successfully joined Room ${jId}!`);
     });
 
     socket.on('error_message', (msg) => alert(msg));
@@ -282,7 +283,12 @@ export default function MultiplayerGame() {
                 <input
                   type="text"
                   value={roomInput}
-                  onChange={(e) => setRoomInput(e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    const numericVal = e.target.value.replace(/\D/g, '');
+                    setRoomInput(numericVal);
+                  }}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   placeholder="ENTER ROOM ID"
                   className="w-full bg-slate-950 border border-slate-700 rounded-md h-12 px-4 text-center font-mono text-2xl text-cyan-300 focus:outline-none focus:border-cyan-500"
                   maxLength={6}
@@ -365,7 +371,7 @@ export default function MultiplayerGame() {
           />
         </div>
 
-        <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
+        <div className={`${mpState === 'placing' || showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
           {mpState === 'placing' ? (
             <div className="w-full bg-slate-900 border border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-lg max-w-md">
               <div className="text-center space-y-2">

@@ -20,7 +20,8 @@ io.on('connection', (socket) => {
   console.log('🟢 User connected:', socket.id);
 
   socket.on('create_room', () => {
-    const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // Generate a 6-digit number string
+    const roomId = Math.floor(100000 + Math.random() * 900000).toString();
     rooms.set(roomId, { players: [socket.id], state: 'waiting' });
     socket.join(roomId);
     socket.emit('room_created', roomId);
@@ -28,10 +29,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join_room', (roomId) => {
-    roomId = roomId.toUpperCase();
+    roomId = String(roomId).trim();
     const room = rooms.get(roomId);
     
     if (room) {
+      if (room.players.includes(socket.id)) {
+        // Silently ignore duplicate join requests (e.g. from React Strict Mode)
+        // so we don't spam the client with multiple room_joined events or errors.
+        return;
+      }
+
       if (room.players.length < 2) {
         room.players.push(socket.id);
         room.state = 'playing';
