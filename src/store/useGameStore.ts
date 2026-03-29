@@ -23,7 +23,7 @@ interface GameState {
   
   logs: LogEntry[];
   turnActionCount: number;
-  pendingAction: { actor: 'player' | 'computer', target: Coordinate } | null;
+  pendingAction: { actor: 'player' | 'computer' | 'opponent', target: Coordinate } | null;
 
   setMode: (mode: GameMode) => void;
   startGame: () => void;
@@ -101,7 +101,7 @@ export const useGameStore = create<GameState>()(
       },
 
       resetGame: () => {
-        const { gridSize } = get();
+        const { gridSize, matchType } = get();
         set({
           playerState: 'placing',
           playerShips: createInitialShips(),
@@ -113,6 +113,7 @@ export const useGameStore = create<GameState>()(
           logs: [],
           turnActionCount: 0,
           pendingAction: null,
+          matchType: 'singleplayer' 
         });
       },
 
@@ -140,7 +141,7 @@ export const useGameStore = create<GameState>()(
           for (let i = 0; i < ship.length; i++) {
             coordinates.push({
               x: newIsVertical ? head.x : head.x + i,
-              y: newIsVertical ? head.y : head.y + i,
+              y: newIsVertical ? head.y + i : head.y,
             });
           }
 
@@ -242,21 +243,27 @@ export const useGameStore = create<GameState>()(
 
           const gameOver = isFleetSunk(newComputerShips);
 
-          set((state) => ({
-            pendingAction: null,
-            computerShips: newComputerShips,
-            computerHits: hit ? [...state.computerHits, { x, y }] : state.computerHits,
-            computerMisses: !hit ? [...state.computerMisses, { x, y }] : state.computerMisses,
-            logs: newLogs,
-            turnActionCount: state.turnActionCount + 1,
-            playerState: gameOver ? 'won' : 'waiting'
-          }));
+          set((state) => {
+            const updates: Partial<GameState> = {
+              pendingAction: null,
+              computerShips: newComputerShips,
+              computerHits: hit ? [...state.computerHits, { x, y }] : state.computerHits,
+              computerMisses: !hit ? [...state.computerMisses, { x, y }] : state.computerMisses,
+              turnActionCount: state.turnActionCount + 1,
+              playerState: gameOver ? 'won' : 'waiting'
+            };
+            
+            if (state.matchType === 'singleplayer') {
+              updates.logs = newLogs;
+            }
+            
+            return updates;
+          });
 
-          if (!gameOver) {
+          if (!gameOver && get().matchType === 'singleplayer') {
             setTimeout(() => get().initiateComputerAttack(), 800);
           }
-        } else {
-          // computer attack
+        } else if (actor === 'computer') {
           let newPlayerShips = [...playerShips];
           newPlayerShips = newPlayerShips.map(ship => {
             const isHit = ship.coordinates.some(c => c.x === x && c.y === y);
@@ -288,6 +295,8 @@ export const useGameStore = create<GameState>()(
             turnActionCount: state.turnActionCount + 1,
             playerState: gameOver ? 'lost' : 'playing'
           }));
+        } else {
+          set({ pendingAction: null });
         }
       }
     }),

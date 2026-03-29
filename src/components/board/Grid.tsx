@@ -1,7 +1,6 @@
 import { Cell } from './Cell';
 import { Coordinate, Ship } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCw } from 'lucide-react';
 
 interface GridProps {
   id?: string;
@@ -28,7 +27,7 @@ export const Grid = ({ id, size, playerType, hits, misses, sunkCoords, fleet, on
   };
 
   const getShipColor = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'Carrier': return 'from-purple-600 to-indigo-600 border-indigo-400';
       case 'Battleship': return 'from-blue-600 to-cyan-600 border-cyan-300';
       case 'Cruiser': return 'from-teal-600 to-emerald-600 border-emerald-400';
@@ -39,7 +38,7 @@ export const Grid = ({ id, size, playerType, hits, misses, sunkCoords, fleet, on
   };
 
   return (
-    <div 
+    <div
       id={id}
       className="relative grid gap-[1px] bg-cyan-950/80 p-1 rounded-lg border-2 border-cyan-800 shadow-[0_0_30px_rgba(8,145,178,0.2)] w-full max-w-md aspect-square"
       style={{ gridTemplateColumns: `repeat(${size}, minmax(0, 1fr))` }}
@@ -68,18 +67,18 @@ export const Grid = ({ id, size, playerType, hits, misses, sunkCoords, fleet, on
         {fleet?.filter(s => s.isPlaced).map(ship => {
           // Find top-leftmost cell
           const head = ship.coordinates.reduce((min, c) => (c.x <= min.x && c.y <= min.y ? c : min), ship.coordinates[0]);
-          
+
           const left = `${(head.x / size) * 100}%`;
           const top = `${(head.y / size) * 100}%`;
           const width = `${(ship.isVertical ? 1 : ship.length) * (100 / size)}%`;
           const height = `${(ship.isVertical ? ship.length : 1) * (100 / size)}%`;
 
           return (
-            <motion.div 
-              initial={{ scale: 1.5, opacity: 0 }}
-              animate={{ 
-                scale: isPlacingPhase ? 0.9 : (ship.isSunk ? 0.9 : 1), 
-                opacity: ship.isSunk ? 0.4 : 0.95,
+            <motion.div
+              initial={{ scale: 1.25, opacity: 0 }}
+              animate={{
+                scale: isPlacingPhase ? 0.9 : (ship.isSunk ? 0.9 : 1),
+                opacity: ship.isSunk ? 0.4 : 0.75,
                 y: ship.isSunk ? 20 : 0,
                 rotateZ: ship.isSunk ? -5 : 0
               }}
@@ -95,22 +94,20 @@ export const Grid = ({ id, size, playerType, hits, misses, sunkCoords, fleet, on
                   onShipDragStart?.(ship.id, e as unknown as React.DragEvent);
                 }
               }}
-              className={`absolute z-20 p-[2px] md:p-[4px] transition-all duration-300 ${isPlacingPhase ? 'cursor-grab active:cursor-grabbing pointer-events-auto' : 'pointer-events-none'}`}
+              onClick={(e) => {
+                if (isPlacingPhase) {
+                  e.stopPropagation();
+                  onShipRotate?.(ship.id);
+                }
+              }}
+              className={`absolute z-20 p-[2px] md:p-[4px] transition-all duration-300 ${isPlacingPhase ? 'cursor-pointer active:cursor-grabbing pointer-events-auto' : 'pointer-events-none'}`}
               style={{ left, top, width, height }}
+              title={isPlacingPhase ? "Drag to re-position, click to rotate" : ""}
             >
-              <div className={`group w-full h-full rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] bg-gradient-to-br ${getShipColor(ship.type)} border-2 opacity-95 flex items-center justify-center overflow-hidden relative`}>
-                <span className={`text-[9px] md:text-sm text-white font-black mix-blend-overlay ${ship.isVertical ? 'rotate-90' : ''} tracking-widest pointer-events-none`}>
+              <div className={`group w-full h-full rounded shadow-[0_0_15px_rgba(0,0,0,0.5)] bg-gradient-to-br ${getShipColor(ship.type)} border-2 opacity-75 flex items-center justify-center overflow-hidden relative`}>
+                <span className={`text-[8px] text-white/90 font-black tracking-widest drop-shadow-[0_0_2px_rgba(0,0,0,0.5)] ${ship.isVertical ? 'rotate-90' : ''} pointer-events-none`}>
                   {ship.type.toUpperCase()}
                 </span>
-                {isPlacingPhase && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onShipRotate?.(ship.id); }}
-                    className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/80 p-1 rounded hover:bg-slate-800 cursor-pointer shadow-xl border border-cyan-800/50"
-                    title="Rotate Ship"
-                  >
-                    <RotateCw className="w-3 h-3 md:w-4 md:h-4 text-cyan-300" strokeWidth={3} />
-                  </button>
-                )}
               </div>
             </motion.div>
           );

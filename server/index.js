@@ -59,8 +59,8 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('receive_attack', target);
   });
 
-  socket.on('attack_result', ({ roomId, target, result }) => {
-    socket.to(roomId).emit('attack_result_received', { target, result });
+  socket.on('attack_result', ({ roomId, target, result, shipCoords }) => {
+    socket.to(roomId).emit('attack_result_received', { target, result, shipCoords });
   });
   
   socket.on('change_turn', ({ roomId, nextPlayerId }) => {
@@ -79,7 +79,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = 4000;
-// Explicitly bind to 0.0.0.0 to guarantee network access
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Socket.IO Server running on port ${PORT} across the network`);
 });

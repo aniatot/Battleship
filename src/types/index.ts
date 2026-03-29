@@ -23,7 +23,8 @@ export type PlayerState = 'placing' | 'playing' | 'waiting' | 'won' | 'lost';
 
 export type LogEntry = {
   turn: number;
-  player: 'Player 1' | 'Computer' | 'Player 2';
+  player: string;
+  color?: string;
   target: Coordinate;
   result: 'hit' | 'miss' | 'sunk';
 };

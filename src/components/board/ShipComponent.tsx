@@ -1,5 +1,4 @@
 import { Ship } from '../../types';
-import { RotateCw } from 'lucide-react';
 
 interface DraggableShipProps {
   ship: Ship;
@@ -9,11 +8,10 @@ interface DraggableShipProps {
 }
 
 export const DraggableShip = ({ ship, cellWidth = 40, onRotate, onDragStart }: DraggableShipProps) => {
-  const width = ship.isVertical ? cellWidth : ship.length * cellWidth;
-  const height = ship.isVertical ? ship.length * cellWidth : cellWidth;
+  const width = ship.isVertical ? cellWidth - 5 : ship.length * cellWidth;
 
   const getShipColor = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'Carrier': return 'from-purple-600 to-indigo-600 border-indigo-400';
       case 'Battleship': return 'from-blue-600 to-cyan-600 border-cyan-300';
       case 'Cruiser': return 'from-teal-600 to-emerald-600 border-emerald-400';
@@ -32,25 +30,23 @@ export const DraggableShip = ({ ship, cellWidth = 40, onRotate, onDragStart }: D
           onDragStart?.(ship.id, e);
         }
       }}
-      className={`relative group flex flex-col items-center justify-center border-2 rounded shadow-lg transition-transform hover:scale-100 scale-90 bg-gradient-to-br ${getShipColor(ship.type)} ${!ship.isPlaced ? 'cursor-grab active:cursor-grabbing pointer-events-auto' : 'pointer-events-none'}`}
+      onClick={(e) => {
+        if (!ship.isPlaced) {
+          e.stopPropagation();
+          onRotate?.(ship.id);
+        }
+      }}
+      className={`relative group flex flex-col items-center justify-center border-2 rounded shadow-lg transition-all hover:scale-100 scale-90 bg-gradient-to-br ${getShipColor(ship.type)} ${!ship.isPlaced ? 'cursor-pointer' : 'pointer-events-none'}`}
       style={{
         width: `${width}px`,
         height: `${height}px`,
         opacity: ship.isPlaced ? 0.3 : 1, // Dim when placed if shown in dock
       }}
+      title={!ship.isPlaced ? "Drag to deploy, click to rotate" : ""}
     >
-      <div className={`text-[10px] text-white uppercase font-black mix-blend-overlay tracking-widest whitespace-nowrap pointer-events-none ${ship.isVertical ? 'rotate-90' : ''}`}>
+      <div className={`text-[9px] text-white/90 uppercase font-black tracking-widest drop-shadow-[0_0_2px_rgba(0,0,0,0.5)] ${ship.isVertical ? 'rotate-90' : ''} pointer-events-none`}>
         {ship.type}
       </div>
-      {!ship.isPlaced && (
-        <button 
-          onClick={(e) => { e.stopPropagation(); onRotate?.(ship.id); }}
-          className="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-slate-950/80 p-1 rounded hover:bg-slate-800 cursor-pointer shadow-xl border border-cyan-800/50"
-          title="Rotate Ship"
-        >
-          <RotateCw className="w-3 h-3 text-cyan-300" strokeWidth={3} />
-        </button>
-      )}
     </div>
   );
 };

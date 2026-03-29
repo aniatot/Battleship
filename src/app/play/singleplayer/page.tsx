@@ -8,6 +8,7 @@ import { DraggableShip } from "../../../components/board/ShipComponent";
 import { TacticalLog } from "../../../components/ui/TacticalLog";
 import { Button } from "../../../components/ui/Button";
 import { MissileAnim } from "../../../components/ui/MissileAnim";
+import { Info, X, RotateCcw } from "lucide-react";
 
 export default function SingleplayerGame() {
   const {
@@ -17,8 +18,13 @@ export default function SingleplayerGame() {
   } = useGameStore();
 
   const [isClient, setIsClient] = useState(false);
+  const [showExtraInfo, setShowExtraInfo] = useState(false);
 
-  useEffect(() => { setIsClient(true); }, []);
+  useEffect(() => {
+    setIsClient(true);
+    useGameStore.setState({ matchType: 'singleplayer' });
+  }, []);
+
   if (!isClient) return null;
 
   const handleDragStart = (id: string, e: React.DragEvent) => {
@@ -32,23 +38,32 @@ export default function SingleplayerGame() {
 
   const playerSunkCoords = playerShips.filter(s => s.isSunk).flatMap(s => s.coordinates);
   const computerSunkCoords = computerShips.filter(s => s.isSunk).flatMap(s => s.coordinates);
-  
-  const computerShipsVisible = playerState === 'lost' || playerState === 'won' 
+
+  const computerShipsVisible = playerState === 'lost' || playerState === 'won'
     ? computerShips
     : computerShips.filter(s => s.isSunk);
 
   return (
-    <div className="min-h-screen flex flex-col p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto w-full">
+    <div className="min-h-screen flex flex-col p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto w-full relative">
       <MissileAnim />
+
+      {/* Mobile Toggle Button */}
+      <button
+        onClick={() => setShowExtraInfo(!showExtraInfo)}
+        className="lg:hidden fixed top-4 right-4 z-[110] w-12 h-12 rounded-full bg-cyan-600/90 text-white flex items-center justify-center shadow-[0_0_15px_rgba(8,145,178,0.5)] border border-cyan-400/50 backdrop-blur-sm"
+      >
+        {showExtraInfo ? <X className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+      </button>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/80 p-4 rounded-xl border border-cyan-800 shadow-[0_0_20px_rgba(8,145,178,0.3)]">
+      <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/80 p-4 rounded-xl border border-cyan-800 shadow-[0_0_20px_rgba(8,145,178,0.3)] z-[105]`}>
         <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="sm" className="border border-slate-700">&larr; Main Menu</Button>
           </Link>
           <h2 className="text-xl md:text-2xl font-black text-cyan-400 tracking-widest uppercase">Classic Mode</h2>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <div className="text-lg font-bold uppercase tracking-widest text-slate-300">
             Status: <span className="text-cyan-300">{playerState}</span>
@@ -61,11 +76,11 @@ export default function SingleplayerGame() {
 
       {/* Main Content: Desktop Row, Mobile Col */}
       <div className="flex-1 flex flex-col lg:flex-row gap-8 items-center lg:items-start justify-center w-full">
-        
+
         {/* 1. Commander Grid (Player One) */}
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3">
           <h3 className="text-xl font-bold text-cyan-500 uppercase tracking-widest">Commander Fleet</h3>
-          <Grid 
+          <Grid
             id="grid-player"
             size={gridSize}
             playerType="player"
@@ -79,52 +94,59 @@ export default function SingleplayerGame() {
             onShipDragStart={handleDragStart}
             onShipRotate={rotateShip}
           />
-          {playerState === 'placing' && (
-            <div className="w-full bg-slate-900 border border-slate-700 rounded-xl p-6 mt-4 flex flex-col gap-6 shadow-lg max-w-md">
+        </div>
+
+        {/* 2. Utility Column (Log/Dockyard) */}
+        <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
+          {playerState === 'placing' ? (
+            <div className="w-full bg-slate-900 border border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-lg max-w-md">
               <div className="text-center space-y-2">
                 <h3 className="text-lg font-bold text-slate-200 uppercase tracking-wider">Naval Dockyard</h3>
                 <p className="text-sm text-slate-400">Drag ships to deploy. Click ship to rotate.</p>
               </div>
-              
-              <div className="flex flex-wrap gap-4 justify-center items-center p-4 bg-slate-950 rounded-lg min-h-[160px]">
+
+              <div className="relative flex flex-wrap gap-4 justify-center items-center p-4 bg-slate-950 rounded-lg min-h-[160px]">
                 {playerShips.map(ship => (
-                  <DraggableShip 
-                    key={ship.id} 
-                    ship={ship} 
+                  <DraggableShip
+                    key={ship.id}
+                    ship={ship}
                     onDragStart={handleDragStart}
                     onRotate={rotateShip}
-                    cellWidth={35}
+                    cellWidth={30}
                   />
                 ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="secondary" onClick={randomizePlayerShips} className="flex-1">Randomize</Button>
-                <Button 
-                  variant="primary" 
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <Button variant="secondary" onClick={randomizePlayerShips} className="flex-1">Randomize</Button>
+                  <Button variant="ghost" onClick={resetGame} className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 gap-2">
+                    <RotateCcw className="w-4 h-4" /> Reset
+                  </Button>
+                </div>
+                <Button
+                  variant="primary"
                   disabled={!playerShips.every(s => s.isPlaced)}
                   onClick={startGame}
-                  className="flex-1 font-bold btn-glow"
+                  className="w-full font-bold btn-glow"
                 >
-                  START
+                  START MISSION
                 </Button>
               </div>
             </div>
-          )}
-        </div>
-
-        {/* 2. Tactical Log (Hidden on mobile) */}
-        <div className="hidden lg:flex flex-col items-center gap-6 w-full lg:w-1/3 pt-10">
-          {playerState !== 'placing' && <TacticalLog logs={logs} />}
-          
-          {playerState === 'won' && (
-            <div className="text-center p-4 bg-green-900/40 border border-green-500 rounded-lg animate-pulse w-full max-w-sm">
-              <h2 className="text-2xl font-black text-green-400">VICTORY ACHIEVED</h2>
-            </div>
-          )}
-          {playerState === 'lost' && (
-            <div className="text-center p-4 bg-red-900/40 border border-red-500 rounded-lg animate-pulse w-full max-w-sm">
-              <h2 className="text-2xl font-black text-red-500">FLEET DESTROYED</h2>
+          ) : (
+            <div className="flex flex-col items-center gap-6 w-full">
+              <TacticalLog logs={logs} />
+              {playerState === 'won' && (
+                <div className="text-center p-4 bg-green-900/40 border border-green-500 rounded-lg animate-pulse w-full max-w-sm">
+                  <h2 className="text-2xl font-black text-green-400">VICTORY ACHIEVED</h2>
+                </div>
+              )}
+              {playerState === 'lost' && (
+                <div className="text-center p-4 bg-red-900/40 border border-red-500 rounded-lg animate-pulse w-full max-w-sm">
+                  <h2 className="text-2xl font-black text-red-500">FLEET DESTROYED</h2>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -132,7 +154,7 @@ export default function SingleplayerGame() {
         {/* 3. Hostile Grid (Player Two / Computer) */}
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3 relative">
           <h3 className="text-xl font-bold text-red-500/80 uppercase tracking-widest">Hostile Waters</h3>
-          <Grid 
+          <Grid
             id="grid-opponent"
             size={gridSize}
             playerType="opponent"
@@ -145,18 +167,18 @@ export default function SingleplayerGame() {
           />
           {playerState === 'placing' && (
             <div className="absolute inset-0 top-[3rem] z-20 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center rounded-lg border border-slate-800 max-w-md w-full mx-auto aspect-square">
-              <span className="text-slate-500 font-bold tracking-widest text-center px-4">DEFEAT ENEMIES<br/>AWAITING DEPLOYMENT</span>
+              <span className="text-slate-500 font-bold tracking-widest text-center px-4">DEFEAT ENEMIES<br />AWAITING DEPLOYMENT</span>
             </div>
           )}
 
           {/* Victory/Defeat messages for mobile inline */}
           <div className="lg:hidden w-full flex flex-col gap-4 mt-4 max-w-md">
-            {playerState === 'won' && (
+            {playerState === 'won' && !showExtraInfo && (
               <div className="text-center p-4 bg-green-900/40 border border-green-500 rounded-lg animate-pulse">
                 <h2 className="text-xl font-black text-green-400">VICTORY ACHIEVED</h2>
               </div>
             )}
-            {playerState === 'lost' && (
+            {playerState === 'lost' && !showExtraInfo && (
               <div className="text-center p-4 bg-red-900/40 border border-red-500 rounded-lg animate-pulse">
                 <h2 className="text-xl font-black text-red-500">FLEET DESTROYED</h2>
               </div>
