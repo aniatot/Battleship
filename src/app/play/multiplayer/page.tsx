@@ -47,10 +47,25 @@ export default function MultiplayerGame() {
       setRoomInput(roomParam.toUpperCase());
     }
 
-    // Determine current URL for QR code (for Vercel/Public deployment)
-    const protocol = window.location.protocol;
-    const host = window.location.host;
-    setQrUrl(`${protocol}//${host}/play/multiplayer`);
+    // Determine current URL for QR code 
+    const currentHostname = window.location.hostname;
+    const currentPort = window.location.port;
+
+    if (currentHostname === 'localhost' || currentHostname === '127.0.0.1') {
+      // Local development - Fetch the LAN IP for QR (so mobile devices can join)
+      fetch('/api/ip')
+        .then(res => res.json())
+        .then(data => {
+          const portStr = currentPort ? `:${currentPort}` : '';
+          setQrUrl(`http://${data.ip}${portStr}/play/multiplayer`);
+        })
+        .catch(() => {
+          setQrUrl(`${window.location.origin}/play/multiplayer`);
+        });
+    } else {
+      // Cloud/Production - Use current domain
+      setQrUrl(`${window.location.origin}/play/multiplayer`);
+    }
 
     resetGame();
     useGameStore.setState({ matchType: 'multiplayer', playerState: 'placing', logs: [] });
@@ -239,10 +254,17 @@ export default function MultiplayerGame() {
                   <span className="text-slate-400 mb-4 uppercase tracking-widest text-sm text-center font-bold">
                     Scan to Join This Room
                   </span>
-                  <div className="bg-white p-4 rounded-xl shadow-inner">
-                    <QRCodeSVG value={`${qrUrl}?room=${roomId}`} size={160} level={"H"} />
+                  <div className="bg-white p-4 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                    <QRCodeSVG 
+                      value={`${qrUrl}?room=${roomId}`} 
+                      size={180} 
+                      level={"H"}
+                      includeMargin={true}
+                    />
                   </div>
-                  <p className="text-xs text-slate-500 mt-4 text-center max-w-[200px]">Scanning this will open the game and automatically join Room {roomId}</p>
+                  <p className="text-xs text-slate-400 mt-4 text-center max-w-[240px]">
+                    Ensure your mobile is on the same Wi-Fi. Scanning joins Room {roomId} automatically.
+                  </p>
                 </div>
               )}
 

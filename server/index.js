@@ -78,7 +78,8 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 4000;
+// Use PORT from environment for cloud platforms like Render/Heroku
+const PORT = process.env.PORT || 4000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Socket.IO Server running on port ${PORT} across the network`);
+  console.log(`Socket.IO Server running on port ${PORT}`);
 });

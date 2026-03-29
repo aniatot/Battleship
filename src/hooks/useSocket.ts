@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
+// This variable MUST be set in Vercel Project Settings for production
 const getSocketUrl = () => {
-  // 1. Check if an explicit Socket URL is provided via environment variables (vital for cloud deployments like Vercel)
   if (process.env.NEXT_PUBLIC_SOCKET_URL) {
     return process.env.NEXT_PUBLIC_SOCKET_URL;
   }
   
-  // 2. Fallback to dynamic hostname for local LAN play (where mobile connects to PC IP)
   if (typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:4000`;
+    // Local LAN fallback logic
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const hostname = window.location.hostname;
+    const port = window.location.port ? `:${window.location.port}` : ':4000';
+    
+    // Default to port 4000 for the standalone server in local dev
+    return `${protocol}//${hostname}${hostname === 'localhost' ? ':4000' : port}`;
   }
   
   return 'http://localhost:4000';
@@ -23,12 +28,10 @@ export const useSocket = () => {
         console.log('Connecting to socket server at:', url);
         
         const newSocket = io(url, {
-            transports: ['websocket', 'polling'], // Fallback to polling if websocket is blocked
-            reconnectionAttempts: 5,
-            timeout: 10000,
-            extraHeaders: {
-                "Bypass-Tunnel-Reminder": "true"
-            }
+            // Force websocket to prevent 'Mixed Content' errors in production
+            transports: ["websocket"],
+            secure: url.startsWith('https') || url.startsWith('wss'),
+            rejectUnauthorized: false 
         });
 
         setSocket(newSocket);
