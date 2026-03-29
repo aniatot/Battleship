@@ -16,7 +16,7 @@ import { Info, X, RotateCcw } from "lucide-react";
 
 export default function MultiplayerGame() {
   const { gridSize, playerShips, rotateShip, placeShip, randomizePlayerShips, resetGame, logs } = useGameStore();
-
+  
   const socket = useSocket();
 
   // Multi-player State
@@ -26,7 +26,7 @@ export default function MultiplayerGame() {
   const [isPlayer2, setIsPlayer2] = useState(false);
   const [myTurn, setMyTurn] = useState(false);
   const [opponentReady, setOpponentReady] = useState(false);
-
+  
   const [opponentHits, setOpponentHits] = useState<Coordinate[]>([]);
   const [opponentMisses, setOpponentMisses] = useState<Coordinate[]>([]);
   const [opponentSunkCoords, setOpponentSunkCoords] = useState<Coordinate[]>([]);
@@ -37,16 +37,20 @@ export default function MultiplayerGame() {
   useEffect(() => { roomIdRef.current = roomId; }, [roomId]);
 
   const [isClient, setIsClient] = useState(false);
+  
+  // Initialization & Auto-Join from URL
   useEffect(() => {
     setIsClient(true);
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
-    if (roomParam) setRoomInput(roomParam.toUpperCase());
+    if (roomParam) {
+      setRoomInput(roomParam.toUpperCase());
+    }
 
-    fetch('/api/ip').then(res => res.json()).then(data => {
-      const port = window.location.port || '3005';
-      setQrUrl(`http://${data.ip}:${port}/play/multiplayer`);
-    }).catch(() => setQrUrl(`http://192.168.1.17:3005/play/multiplayer`));
+    // Determine current URL for QR code (for Vercel/Public deployment)
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    setQrUrl(`${protocol}//${host}/play/multiplayer`);
 
     resetGame();
     useGameStore.setState({ matchType: 'multiplayer', playerState: 'placing', logs: [] });
@@ -55,6 +59,14 @@ export default function MultiplayerGame() {
   // Handle Socket Events
   useEffect(() => {
     if (!socket) return;
+
+    // Automatic Join if URL parameter is present
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    if (roomParam) {
+      console.log('Detecting room param from URL, auto-joining...', roomParam);
+      socket.emit('join_room', roomParam.toUpperCase());
+    }
 
     socket.on('room_created', (id) => {
       setRoomId(id);
@@ -104,9 +116,8 @@ export default function MultiplayerGame() {
           pendingAction: null
         });
 
-        // Use standard Player 1 / Player 2 names
         const attackerName = isPlayer2 ? 'Player 1' : 'Player 2';
-        const attackerColor = isPlayer2 ? '#60a5fa' : '#ef4444'; // Player 1 Blue, Player 2 Red
+        const attackerColor = isPlayer2 ? '#60a5fa' : '#ef4444'; 
 
         const newLog = {
           turn: Date.now(),
@@ -222,6 +233,19 @@ export default function MultiplayerGame() {
                 <p className="text-slate-400">Share this Room ID with your opponent:</p>
                 <div className="text-4xl font-mono text-cyan-400 tracking-[0.5em] bg-slate-950 py-4 rounded border border-cyan-800/50">{roomId}</div>
               </div>
+              
+              {qrUrl && (
+                <div className="flex flex-col items-center justify-center pt-6 mt-4 border-t border-slate-700/50">
+                  <span className="text-slate-400 mb-4 uppercase tracking-widest text-sm text-center font-bold">
+                    Scan to Join This Room
+                  </span>
+                  <div className="bg-white p-4 rounded-xl shadow-inner">
+                    <QRCodeSVG value={`${qrUrl}?room=${roomId}`} size={160} level={"H"} />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-4 text-center max-w-[200px]">Scanning this will open the game and automatically join Room {roomId}</p>
+                </div>
+              )}
+
               <p className="text-sm text-yellow-500 animate-pulse uppercase tracking-widest mt-4">Waiting for opponent to join...</p>
             </div>
           ) : (
@@ -247,16 +271,6 @@ export default function MultiplayerGame() {
               </div>
             </div>
           )}
-          {qrUrl && (
-            <div className="flex flex-col items-center justify-center pt-6 mt-4 border-t border-slate-700/50">
-              <span className="text-slate-400 mb-4 uppercase tracking-widest text-sm text-center font-bold">
-                {roomId ? "Scan to Join This Room" : "Scan to Open on Mobile"}
-              </span>
-              <div className="bg-white p-4 rounded-xl">
-                <QRCodeSVG value={roomId ? `${qrUrl}?room=${roomId}` : qrUrl} size={150} level={"H"} />
-              </div>
-            </div>
-          )}
 
           <Link href="/" className="w-full mt-4">
             <Button variant="ghost" className="w-full border border-slate-700">Return to Menu</Button>
@@ -266,7 +280,6 @@ export default function MultiplayerGame() {
     );
   }
 
-  // GAME RENDERING
   const { playerHits, playerMisses } = useGameStore.getState();
   const playerSunkCoords = playerShips.filter(s => s.isSunk).flatMap(s => s.coordinates);
 
@@ -279,16 +292,15 @@ export default function MultiplayerGame() {
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto w-full relative">
       <MissileAnim />
-
+      
       {/* Mobile Toggle Button */}
-      <button
+      <button 
         onClick={() => setShowExtraInfo(!showExtraInfo)}
         className="lg:hidden fixed top-4 right-4 z-[110] w-12 h-12 rounded-full bg-cyan-600/90 text-white flex items-center justify-center shadow-[0_0_15px_rgba(8,145,178,0.5)] border border-cyan-400/50 backdrop-blur-sm"
       >
         {showExtraInfo ? <X className="w-6 h-6" /> : <Info className="w-6 h-6" />}
       </button>
 
-      {/* Header */}
       <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/80 p-4 rounded-xl border border-cyan-800 shadow-[0_0_20px_rgba(8,145,178,0.3)] z-[105]`}>
         <div className="flex items-center gap-4">
           <Link href="/">
@@ -313,7 +325,6 @@ export default function MultiplayerGame() {
 
       <div className="flex-1 flex flex-col lg:flex-row gap-8 items-center lg:items-start justify-center w-full">
 
-        {/* 1. Commander Grid (Left) */}
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3">
           <h3 className="text-xl font-bold text-cyan-500 uppercase tracking-widest">Commander Fleet</h3>
           <Grid
@@ -332,7 +343,6 @@ export default function MultiplayerGame() {
           />
         </div>
 
-        {/* 2. Tactical Log / Dockyard (Center) */}
         <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
           {mpState === 'placing' ? (
             <div className="w-full bg-slate-900 border border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-lg max-w-md">
@@ -359,7 +369,6 @@ export default function MultiplayerGame() {
           )}
         </div>
 
-        {/* 3. Hostile Waters Grid (Right) */}
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3 relative">
           <h3 className="text-xl font-bold text-red-500/80 uppercase tracking-widest">Hostile Waters</h3>
           <Grid

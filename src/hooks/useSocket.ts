@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-// For mobile LAN to work, we need to dynamically connect to the same host the app is served on
 const getSocketUrl = () => {
-  if (typeof window === 'undefined') return 'http://localhost:4000';
-  // Use current hostname (which will be the IP address for mobile connections)
-  return `http://${window.location.hostname}:4000`;
+  // 1. Check if an explicit Socket URL is provided via environment variables (vital for cloud deployments like Vercel)
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+    return process.env.NEXT_PUBLIC_SOCKET_URL;
+  }
+  
+  // 2. Fallback to dynamic hostname for local LAN play (where mobile connects to PC IP)
+  if (typeof window !== 'undefined') {
+    return `http://${window.location.hostname}:4000`;
+  }
+  
+  return 'http://localhost:4000';
 };
 
 export const useSocket = () => {
@@ -13,15 +20,22 @@ export const useSocket = () => {
 
     useEffect(() => {
         const url = getSocketUrl();
+        console.log('Connecting to socket server at:', url);
+        
         const newSocket = io(url, {
-            transports: ['websocket'],
+            transports: ['websocket', 'polling'], // Fallback to polling if websocket is blocked
             reconnectionAttempts: 5,
+            timeout: 10000,
             extraHeaders: {
                 "Bypass-Tunnel-Reminder": "true"
             }
         });
 
         setSocket(newSocket);
+
+        newSocket.on('connect_error', (err) => {
+            console.error('Socket connection error:', err.message);
+        });
 
         return () => {
             newSocket.disconnect();
