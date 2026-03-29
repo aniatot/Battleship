@@ -9,6 +9,7 @@ interface DraggableShipProps {
 
 export const DraggableShip = ({ ship, cellWidth = 40, onRotate, onDragStart }: DraggableShipProps) => {
   const width = ship.isVertical ? cellWidth - 5 : ship.length * cellWidth;
+  const height = ship.isVertical ? ship.length * cellWidth : cellWidth - 5;
 
   const getShipColor = (type: string) => {
     switch (type) {
