@@ -3,12 +3,23 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useGameStore } from "../../../store/useGameStore";
-import { Grid } from "../../../components/board/Grid";
 import { DraggableShip } from "../../../components/board/ShipComponent";
-import { TacticalLog } from "../../../components/ui/TacticalLog";
 import { Button } from "../../../components/ui/Button";
 import { MissileAnim } from "../../../components/ui/MissileAnim";
-import { Info, X, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Spinner, FullPageSpinner } from "../../../components/ui/Spinner";
+import dynamic from 'next/dynamic';
+
+const Grid = dynamic(() => import('../../../components/board/Grid').then(mod => mod.Grid), {
+  ssr: false,
+  loading: () => <div className="w-full max-w-md aspect-square flex items-center justify-center bg-cyan-950/20 rounded-lg border border-cyan-900/40 backdrop-blur-sm shadow-inner"><Spinner size="xl" /></div>
+});
+
+const TacticalLog = dynamic(() => import('../../../components/ui/TacticalLog').then(mod => mod.TacticalLog), {
+  ssr: false,
+  loading: () => <div className="w-full max-w-sm h-64 flex items-center justify-center bg-slate-900 border border-slate-800 rounded-lg shadow-inner"><Spinner size="lg" /></div>
+});
 
 export default function SingleplayerGame() {
   const {
@@ -19,13 +30,23 @@ export default function SingleplayerGame() {
 
   const [isClient, setIsClient] = useState(false);
   const [showExtraInfo, setShowExtraInfo] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetGame = () => {
+    setIsResetting(true);
+    setTimeout(() => {
+      resetGame();
+      setIsResetting(false);
+    }, 500);
+  };
 
   useEffect(() => {
     setIsClient(true);
     useGameStore.setState({ matchType: 'singleplayer' });
   }, []);
 
-  if (!isClient) return null;
+  if (!isClient) return <FullPageSpinner message="INITIALIZING CLASSIC MODE..." />;
+  if (isResetting) return <FullPageSpinner message="RESETTING BATTLEFIELD..." />;
 
   const handleDragStart = (id: string, e: React.DragEvent) => {
     e.dataTransfer.setData("shipId", id);
@@ -52,11 +73,19 @@ export default function SingleplayerGame() {
         onClick={() => setShowExtraInfo(!showExtraInfo)}
         className="lg:hidden fixed top-4 right-4 z-[110] w-12 h-12 rounded-full bg-cyan-600/90 text-white flex items-center justify-center shadow-[0_0_15px_rgba(8,145,178,0.5)] border border-cyan-400/50 backdrop-blur-sm"
       >
-        {showExtraInfo ? <X className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+        {showExtraInfo ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
       </button>
 
       {/* Header */}
-      <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/80 p-4 rounded-xl border border-cyan-800 shadow-[0_0_20px_rgba(8,145,178,0.3)] z-[105]`}>
+      <motion.div
+        initial={false}
+        animate={showExtraInfo ? "open" : "closed"}
+        variants={{
+          open: { height: 'auto', opacity: 1, paddingTop: '1rem', paddingBottom: '1rem', display: 'flex' },
+          closed: { height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, transitionEnd: { display: 'none' } }
+        }}
+        className={`lg:!h-auto lg:!opacity-100 lg:!pt-4 lg:!pb-4 lg:!flex overflow-hidden flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/80 px-4 rounded-xl border border-cyan-800 shadow-[0_0_20px_rgba(8,145,178,0.3)] z-[105]`}
+      >
         <div className="flex items-center gap-4">
           <Link href="/">
             <Button variant="ghost" size="sm" className="border border-slate-700">&larr; Main Menu</Button>
@@ -69,17 +98,19 @@ export default function SingleplayerGame() {
             Status: <span className="text-cyan-300">{playerState}</span>
           </div>
           <Link href="/">
-            <Button variant="danger" size="sm" onClick={resetGame}>Reset Game</Button>
+            <Button variant="danger" size="sm" onClick={handleResetGame} disabled={isResetting}>
+              {isResetting ? <Spinner size="sm" className="text-white w-4 h-4" /> : "Reset Game"}
+            </Button>
           </Link>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Content: Desktop Row, Mobile Col */}
       <div className="flex-1 flex flex-col lg:flex-row gap-8 items-center lg:items-start justify-center w-full">
 
         {/* 1. Commander Grid (Player One) */}
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3">
-          <h3 className="text-xl font-bold text-cyan-500 uppercase tracking-widest">Commander Fleet</h3>
+          <h3 className="w-full max-w-md text-center px-6 py-3 bg-slate-900/80 border border-cyan-500/30 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.15)] text-xl font-black text-cyan-400 uppercase tracking-widest">Commander Fleet</h3>
           <Grid
             id="grid-player"
             size={gridSize}
@@ -97,7 +128,7 @@ export default function SingleplayerGame() {
         </div>
 
         {/* 2. Utility Column (Log/Dockyard) */}
-        <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
+        <div className={`flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
           {playerState === 'placing' ? (
             <div className="w-full bg-slate-900 border border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-lg max-w-md">
               <div className="text-center space-y-2">
@@ -120,8 +151,8 @@ export default function SingleplayerGame() {
               <div className="flex flex-col gap-3">
                 <div className="flex gap-3">
                   <Button variant="secondary" onClick={randomizePlayerShips} className="flex-1">Randomize</Button>
-                  <Button variant="ghost" onClick={resetGame} className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 gap-2">
-                    <RotateCcw className="w-4 h-4" /> Reset
+                  <Button variant="ghost" onClick={handleResetGame} disabled={isResetting} className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 gap-2">
+                    {isResetting ? <Spinner size="sm" className="w-4 h-4 text-cyan-500" /> : <><RotateCcw className="w-4 h-4" /> Reset</>}
                   </Button>
                 </div>
                 <Button
@@ -153,7 +184,7 @@ export default function SingleplayerGame() {
 
         {/* 3. Hostile Grid (Player Two / Computer) */}
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3 relative">
-          <h3 className="text-xl font-bold text-red-500/80 uppercase tracking-widest">Hostile Waters</h3>
+          <h3 className="w-full max-w-md text-center px-6 py-3 bg-slate-900/80 border border-red-500/30 rounded-lg shadow-[0_0_15px_rgba(239,68,68,0.15)] text-xl font-black text-red-400 uppercase tracking-widest">Hostile Waters</h3>
           <Grid
             id="grid-opponent"
             size={gridSize}
@@ -166,7 +197,7 @@ export default function SingleplayerGame() {
             interactive={playerState === 'playing'}
           />
           {playerState === 'placing' && (
-            <div className="absolute inset-0 top-[3rem] z-20 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center rounded-lg border border-slate-800 max-w-md w-full mx-auto aspect-square">
+            <div className="absolute inset-0 top-[3rem] mt-[22px] z-20 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center rounded-lg border border-slate-800 max-w-md w-full mx-auto aspect-square">
               <span className="text-slate-500 font-bold tracking-widest text-center px-4">DEFEAT ENEMIES<br />AWAITING DEPLOYMENT</span>
             </div>
           )}

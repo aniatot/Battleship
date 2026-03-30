@@ -3,20 +3,35 @@
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useGameStore } from "../../../store/useGameStore";
-import { Grid } from "../../../components/board/Grid";
 import { DraggableShip } from "../../../components/board/ShipComponent";
-import { TacticalLog } from "../../../components/ui/TacticalLog";
 import { Button } from "../../../components/ui/Button";
 import { MissileAnim } from "../../../components/ui/MissileAnim";
 import { Coordinate } from "../../../types";
 import { isFleetSunk } from "../../../utils/gameLogic";
-import { QRCodeSVG } from "qrcode.react";
 import { useSocket } from '@/hooks/useSocket';
-import { Info, X, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Spinner, FullPageSpinner } from "../../../components/ui/Spinner";
+import dynamic from 'next/dynamic';
+
+const Grid = dynamic(() => import('../../../components/board/Grid').then(mod => mod.Grid), {
+  ssr: false,
+  loading: () => <div className="w-full max-w-md aspect-square flex items-center justify-center bg-cyan-950/20 rounded-lg border border-cyan-900/40 backdrop-blur-sm shadow-inner"><Spinner size="xl" /></div>
+});
+
+const TacticalLog = dynamic(() => import('../../../components/ui/TacticalLog').then(mod => mod.TacticalLog), {
+  ssr: false,
+  loading: () => <div className="w-full max-w-sm h-64 flex items-center justify-center bg-slate-900 border border-slate-800 rounded-lg shadow-inner"><Spinner size="lg" /></div>
+});
+
+const QRCodeSVG = dynamic(() => import('qrcode.react').then(mod => mod.QRCodeSVG), {
+  ssr: false,
+  loading: () => <div className="w-[180px] h-[180px] flex items-center justify-center bg-slate-900 border border-slate-800 rounded-xl shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"><Spinner size="lg" /></div>
+});
 
 export default function MultiplayerGame() {
   const { gridSize, playerShips, rotateShip, placeShip, randomizePlayerShips, resetGame, logs } = useGameStore();
-  
+
   const socket = useSocket();
 
   // Multi-player State
@@ -26,7 +41,7 @@ export default function MultiplayerGame() {
   const [isPlayer2, setIsPlayer2] = useState(false);
   const [myTurn, setMyTurn] = useState(false);
   const [opponentReady, setOpponentReady] = useState(false);
-  
+
   const [opponentHits, setOpponentHits] = useState<Coordinate[]>([]);
   const [opponentMisses, setOpponentMisses] = useState<Coordinate[]>([]);
   const [opponentSunkCoords, setOpponentSunkCoords] = useState<Coordinate[]>([]);
@@ -37,7 +52,16 @@ export default function MultiplayerGame() {
   useEffect(() => { roomIdRef.current = roomId; }, [roomId]);
 
   const [isClient, setIsClient] = useState(false);
-  
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetGame = () => {
+    setIsResetting(true);
+    setTimeout(() => {
+      resetGame();
+      setIsResetting(false);
+    }, 500);
+  };
+
   // Initialization & Auto-Join from URL
   useEffect(() => {
     setIsClient(true);
@@ -133,7 +157,7 @@ export default function MultiplayerGame() {
         });
 
         const attackerName = isPlayer2 ? 'Player 1' : 'Player 2';
-        const attackerColor = isPlayer2 ? '#60a5fa' : '#ef4444'; 
+        const attackerColor = isPlayer2 ? '#60a5fa' : '#ef4444';
 
         const newLog = {
           turn: Date.now(),
@@ -233,7 +257,8 @@ export default function MultiplayerGame() {
     setMyTurn(false);
   };
 
-  if (!isClient) return null;
+  if (!isClient) return <FullPageSpinner message="CONNECTING TO SECURE MULTIPLAYER SERVER..." />;
+  if (isResetting) return <FullPageSpinner message="RECONFIGURING FLEET ASSETS..." />;
 
   // LOBBY RENDERING
   if (mpState === 'lobby') {
@@ -249,16 +274,16 @@ export default function MultiplayerGame() {
                 <p className="text-slate-400">Share this Room ID with your opponent:</p>
                 <div className="text-4xl font-mono text-cyan-400 tracking-[0.5em] bg-slate-950 py-4 rounded border border-cyan-800/50">{roomId}</div>
               </div>
-              
+
               {qrUrl && (
                 <div className="flex flex-col items-center justify-center pt-6 mt-4 border-t border-slate-700/50">
                   <span className="text-slate-400 mb-4 uppercase tracking-widest text-sm text-center font-bold">
                     Scan to Join This Room
                   </span>
                   <div className="bg-white p-4 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                    <QRCodeSVG 
-                      value={`${qrUrl}?room=${roomId}`} 
-                      size={180} 
+                    <QRCodeSVG
+                      value={`${qrUrl}?room=${roomId}`}
+                      size={180}
                       level={"H"}
                       includeMargin={true}
                     />
@@ -320,19 +345,29 @@ export default function MultiplayerGame() {
   return (
     <div className="min-h-screen flex flex-col p-4 md:p-8 space-y-8 max-w-[1600px] mx-auto w-full relative">
       <MissileAnim />
-      
+
       {/* Mobile Toggle Button */}
-      <button 
+      <button
         onClick={() => setShowExtraInfo(!showExtraInfo)}
         className="lg:hidden fixed top-4 right-4 z-[110] w-12 h-12 rounded-full bg-cyan-600/90 text-white flex items-center justify-center shadow-[0_0_15px_rgba(8,145,178,0.5)] border border-cyan-400/50 backdrop-blur-sm"
       >
-        {showExtraInfo ? <X className="w-6 h-6" /> : <Info className="w-6 h-6" />}
+        {showExtraInfo ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
       </button>
 
-      <div className={`${showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/80 p-4 rounded-xl border border-cyan-800 shadow-[0_0_20px_rgba(8,145,178,0.3)] z-[105]`}>
+      <motion.div
+        initial={false}
+        animate={showExtraInfo ? "open" : "closed"}
+        variants={{
+          open: { height: 'auto', opacity: 1, paddingTop: '1rem', paddingBottom: '1rem', display: 'flex' },
+          closed: { height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0, transitionEnd: { display: 'none' } }
+        }}
+        className={`lg:!h-auto lg:!opacity-100 lg:!pt-4 lg:!pb-4 lg:!flex overflow-hidden flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/80 px-4 rounded-xl border border-cyan-800 shadow-[0_0_20px_rgba(8,145,178,0.3)] z-[105]`}
+      >
         <div className="flex items-center gap-4">
           <Link href="/">
-            <Button variant="danger" size="sm" onClick={resetGame}>Abandon Game</Button>
+            <Button variant="danger" size="sm" onClick={handleResetGame} disabled={isResetting}>
+              {isResetting ? <Spinner size="sm" className="text-white w-4 h-4" /> : "Abandon Game"}
+            </Button>
           </Link>
           <div className="flex flex-col">
             <h2 className="text-xl md:text-2xl font-black text-cyan-400 tracking-widest uppercase">Multiplayer Match</h2>
@@ -349,12 +384,12 @@ export default function MultiplayerGame() {
             {mpState === 'lost' && <span className="text-red-500 text-sm">DEFEAT</span>}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-8 items-center lg:items-start justify-center w-full">
 
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3">
-          <h3 className="text-xl font-bold text-cyan-500 uppercase tracking-widest">Commander Fleet</h3>
+          <h3 className="w-full max-w-md text-center px-6 py-3 bg-slate-900/80 border border-cyan-500/30 rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.15)] text-xl font-black text-cyan-400 uppercase tracking-widest">Commander Fleet</h3>
           <Grid
             id="grid-player"
             size={gridSize}
@@ -371,7 +406,7 @@ export default function MultiplayerGame() {
           />
         </div>
 
-        <div className={`${mpState === 'placing' || showExtraInfo ? 'flex' : 'hidden'} lg:flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
+        <div className={`flex flex-col items-center gap-6 w-full lg:w-1/3 lg:pt-10`}>
           {mpState === 'placing' ? (
             <div className="w-full bg-slate-900 border border-slate-700 rounded-xl p-6 flex flex-col gap-6 shadow-lg max-w-md">
               <div className="text-center space-y-2">
@@ -385,8 +420,8 @@ export default function MultiplayerGame() {
               <div className="flex flex-col gap-3">
                 <div className="flex gap-3">
                   <Button variant="secondary" onClick={randomizePlayerShips} className="flex-1">Randomize</Button>
-                  <Button variant="ghost" onClick={resetGame} className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 gap-2">
-                    <RotateCcw className="text-slate-400 group-hover:text-cyan-400 w-4 h-4 transition-colors" /> Reset
+                  <Button variant="ghost" onClick={handleResetGame} disabled={isResetting} className="flex-1 border border-slate-700 hover:bg-slate-800 text-slate-300 gap-2">
+                    {isResetting ? <Spinner size="sm" className="w-4 h-4 text-cyan-500" /> : <><RotateCcw className="w-4 h-4" /> Reset</>}
                   </Button>
                 </div>
                 <Button variant="primary" disabled={!playerShips.every(s => s.isPlaced)} onClick={handleReady} className="w-full font-bold btn-glow">READY FOR COMBAT</Button>
@@ -398,7 +433,7 @@ export default function MultiplayerGame() {
         </div>
 
         <div className="flex flex-col items-center gap-4 w-full lg:w-1/3 relative">
-          <h3 className="text-xl font-bold text-red-500/80 uppercase tracking-widest">Hostile Waters</h3>
+          <h3 className="w-full max-w-md text-center px-6 py-3 bg-slate-900/80 border border-red-500/30 rounded-lg shadow-[0_0_15px_rgba(239,68,68,0.15)] text-xl font-black text-red-400 uppercase tracking-widest">Hostile Waters</h3>
           <Grid
             id="grid-opponent"
             size={gridSize}

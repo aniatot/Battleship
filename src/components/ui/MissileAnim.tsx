@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useGameStore } from '../../store/useGameStore';
+import { MissileIcon } from '../img/MissileIcon';
 
 export const MissileAnim = () => {
   const { pendingAction, resolveAttack } = useGameStore();
@@ -76,18 +77,8 @@ export const MissileAnim = () => {
         transformOrigin: "center center"
       }}
     >
-      <svg width="30" height="60" viewBox="0 0 30 60" className="drop-shadow-[0_0_15px_#f97316]">
-        <motion.path 
-          animate={{ scaleY: [1, 1.5, 1], opacity: [0.8, 1, 0.8] }} 
-          transition={{ repeat: Infinity, duration: 0.15 }}
-          fill="#f97316" d="M10 50 Q15 70 20 50 Z" 
-          style={{ transformOrigin: "top" }}
-        />
-        <rect x="10" y="20" width="10" height="30" fill="#cbd5e1" />
-        <path fill="#ef4444" d="M10 20 L15 0 L20 20 Z" />
-        <path fill="#94a3b8" d="M5 40 L10 30 L10 50 Z" />
-        <path fill="#94a3b8" d="M25 40 L20 30 L20 50 Z" />
-      </svg>
+      {/* Render the clean extracted SVG representation of the missile */}
+      <MissileIcon className="drop-shadow-[0_0_15px_#f97316]" />
     </motion.div>
   );
 };
